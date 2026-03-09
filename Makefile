@@ -5,6 +5,9 @@ LOCAL_BIN := $(CURDIR)/bin
 BUF := PATH="$(LOCAL_BIN):$$PATH" "$(LOCAL_BIN)/buf"
 PROTO_MODULE_DIR := api/proto
 BUF_TEMPLATE := $(PROTO_MODULE_DIR)/buf.gen.yaml
+BUF_OPENAPI_TEMPLATE := $(PROTO_MODULE_DIR)/buf.openapi.gen.yaml
+HTTP_ADDR ?= :8080
+GRPC_ADDR ?= :9090
 
 PROTOC_GEN_GO_VERSION ?= v1.28.1
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.2.0
@@ -17,7 +20,7 @@ build:
 	go build -o bin/$(APP_NAME) ./cmd/server
 
 run:
-	@CGO_ENABLED=0 go run ./cmd/server/main.go
+	@CGO_ENABLED=0 HTTP_ADDR="$(HTTP_ADDR)" GRPC_ADDR="$(GRPC_ADDR)" go run ./cmd/server/main.go
 
 tools-install: .bin-deps
 
@@ -47,6 +50,8 @@ proto-update-lock: .bin-deps
 
 .buf-generate:
 	@$(BUF) generate "$(PROTO_MODULE_DIR)" --template "$(BUF_TEMPLATE)" --config "$(PROTO_MODULE_DIR)/buf.yaml"
+	@$(BUF) generate "$(PROTO_MODULE_DIR)" --template "$(BUF_OPENAPI_TEMPLATE)" --config "$(PROTO_MODULE_DIR)/buf.yaml" \
+		--path "$(PROTO_MODULE_DIR)/booking/v1" --path "$(PROTO_MODULE_DIR)/catalog/v1" --path "$(PROTO_MODULE_DIR)/ticketing/v1"
 
 proto-lint: .bin-deps .buf-lint
 

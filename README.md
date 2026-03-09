@@ -83,6 +83,7 @@ Mocks strategy:
 .
 |-- api/proto/
 |   |-- buf.gen.yaml
+|   |-- buf.openapi.gen.yaml
 |   |-- buf.yaml
 |   |-- booking/v1/
 |   |-- catalog/v1/
@@ -144,10 +145,21 @@ Default runtime addresses:
 - gRPC: `:9090` (`GRPC_ADDR`)
 - HTTP gateway: `:8080` (`HTTP_ADDR`)
 
+Run on alternative ports (for parallel local runs):
+
+```bash
+make run HTTP_ADDR=:18080 GRPC_ADDR=:19090
+```
+
 Smoke-check endpoints:
 
 ```bash
+curl -i http://127.0.0.1:8080/
+curl -i http://127.0.0.1:8080/swagger/
+curl -i http://127.0.0.1:8080/swagger/specs/public.swagger.json
 curl -i http://127.0.0.1:8080/healthz
+curl -i http://127.0.0.1:8080/metrics
+curl -i http://127.0.0.1:8080/debug/pprof/
 curl -i http://127.0.0.1:8080/v1/catalog/events
 ```
 
@@ -190,7 +202,8 @@ make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_
 - [x] Configure gRPC code generation.
 - [x] Integrate HTTP gateway.
 - [x] Configure Swagger/OpenAPI generation from `proto`.
-- [ ] Add Swagger UI endpoint to browse generated OpenAPI specs.
+- [x] Add a single merged Swagger UI for `catalog`, `booking`, and `ticketing` APIs.
+- [x] Add developer portal page with links to Swagger, metrics, pprof, health, and sample API routes.
 
 ### Stage 3. Business Logic And Data
 - [ ] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.

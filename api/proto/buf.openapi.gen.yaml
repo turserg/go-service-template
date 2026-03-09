@@ -1,0 +1,9 @@
+version: v1
+
+plugins:
+  - plugin: openapiv2
+    out: gen/openapiv2
+    strategy: all
+    opt:
+      - allow_merge=true
+      - merge_file_name=public
