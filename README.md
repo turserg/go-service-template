@@ -49,6 +49,48 @@ Mocks strategy:
 - Support deterministic failure modes (timeouts, unavailable, business reject) via config flags.
 - Use in-memory `bufconn` mocks for fast unit/integration tests where possible.
 
+## Locked Base Stack
+
+- Language/runtime: Go `1.26.1`.
+- API contracts: Protobuf + `buf` (lint, breaking checks, generation).
+- RPC transport: `google.golang.org/grpc`.
+- HTTP gateway + docs: `grpc-gateway/v2` + OpenAPI generation from proto annotations.
+- Database access: PostgreSQL + `pgx/v5` + `sqlc`.
+- Migrations: `golang-migrate`.
+- Logging: standard `log/slog` with JSON output.
+- Tracing/metrics: OpenTelemetry SDK + OTLP exporter + Prometheus.
+- Test stack: Go `testing`, `testify`, `testcontainers-go` (repository integration tests).
+
+## Project Skeleton
+
+```text
+.
+|-- api/proto/
+|   |-- booking/v1/
+|   |-- catalog/v1/
+|   `-- ticketing/v1/
+|-- cmd/server/
+|-- internal/
+|   |-- domain/
+|   |   |-- booking/
+|   |   |-- catalog/
+|   |   `-- ticketing/
+|   |-- platform/
+|   |   |-- config/
+|   |   |-- logger/
+|   |   |-- observability/
+|   |   `-- postgres/
+|   |-- repository/postgres/
+|   |-- transport/
+|   |   |-- grpc/
+|   |   `-- http/
+|   `-- usecase/
+|       |-- booking/
+|       |-- catalog/
+|       `-- ticketing/
+`-- migrations/
+```
+
 ## Roadmap And Progress
 
 > Status format:
@@ -60,8 +102,8 @@ Mocks strategy:
 
 ### Stage 1. Foundation And Architecture
 - [x] Define architectural principles and system boundaries.
-- [ ] Select and lock the base stack (`grpc`, `grpc-gateway`, `OpenAPI`, `pgx/sqlc`, `migrate`, `slog/zap`, `OpenTelemetry`, `Prometheus`).
-- [ ] Set up the project skeleton by layers: `transport`, `usecase`, `repository`, `domain`, `internal/platform`.
+- [x] Select and lock the base stack (`grpc`, `grpc-gateway`, `OpenAPI`, `pgx/sqlc`, `migrate`, `slog/zap`, `OpenTelemetry`, `Prometheus`).
+- [x] Set up the project skeleton by layers: `transport`, `usecase`, `repository`, `domain`, `internal/platform`.
 
 ### Stage 2. API And Transport
 - [ ] Define `proto` files for multiple gRPC services.
