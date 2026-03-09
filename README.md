@@ -68,7 +68,13 @@ Mocks strategy:
 |-- api/proto/
 |   |-- booking/v1/
 |   |-- catalog/v1/
+|   |-- dependency/
+|   |   |-- fraud/v1/
+|   |   |-- notification/v1/
+|   |   `-- payment/v1/
 |   `-- ticketing/v1/
+|-- buf.gen.yaml
+|-- buf.yaml
 |-- cmd/server/
 |-- internal/
 |   |-- domain/
@@ -106,10 +112,10 @@ Mocks strategy:
 - [x] Set up the project skeleton by layers: `transport`, `usecase`, `repository`, `domain`, `internal/platform`.
 
 ### Stage 2. API And Transport
-- [ ] Define `proto` files for multiple gRPC services.
-- [ ] Configure gRPC code generation.
+- [x] Define `proto` files for multiple gRPC services.
+- [x] Configure gRPC code generation.
 - [ ] Integrate HTTP gateway.
-- [ ] Configure Swagger/OpenAPI generation from `proto`.
+- [x] Configure Swagger/OpenAPI generation from `proto`.
 
 ### Stage 3. Business Logic And Data
 - [ ] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.

@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package ticketing.v1;
+
+option go_package = "github.com/turserg/go-service-template/gen/go/ticketing/v1;ticketingv1";
+
+import "google/api/annotations.proto";
+
+service TicketService {
+  rpc IssueTickets(IssueTicketsRequest) returns (IssueTicketsResponse) {
+    option (google.api.http) = {
+      post: "/v1/ticketing/orders/{order_id}/tickets:issue"
+      body: "*"
+    };
+  }
+
+  rpc GetTicketStatus(GetTicketStatusRequest) returns (GetTicketStatusResponse) {
+    option (google.api.http) = {
+      get: "/v1/ticketing/tickets/{ticket_id}"
+    };
+  }
+
+  rpc ResendTicket(ResendTicketRequest) returns (ResendTicketResponse) {
+    option (google.api.http) = {
+      post: "/v1/ticketing/tickets/{ticket_id}:resend"
+      body: "*"
+    };
+  }
+}
+
+message IssueTicketsRequest {
+  string order_id = 1;
+  string idempotency_key = 2;
+}
+
+message IssueTicketsResponse {
+  repeated Ticket tickets = 1;
+}
+
+message GetTicketStatusRequest {
+  string ticket_id = 1;
+}
+
+message GetTicketStatusResponse {
+  Ticket ticket = 1;
+}
+
+message ResendTicketRequest {
+  string ticket_id = 1;
+  string channel = 2;
+}
+
+message ResendTicketResponse {
+  string ticket_id = 1;
+  string status = 2;
+}
+
+message Ticket {
+  string id = 1;
+  string reservation_id = 2;
+  string status = 3;
+}

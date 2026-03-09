@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+option go_package = "github.com/turserg/go-service-template/gen/go/catalog/v1;catalogv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+service CatalogService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
+    option (google.api.http) = {
+      get: "/v1/catalog/events"
+    };
+  }
+
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse) {
+    option (google.api.http) = {
+      get: "/v1/catalog/events/{event_id}"
+    };
+  }
+
+  rpc GetSeatAvailability(GetSeatAvailabilityRequest) returns (GetSeatAvailabilityResponse) {
+    option (google.api.http) = {
+      get: "/v1/catalog/events/{event_id}/seats"
+    };
+  }
+}
+
+message ListEventsRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+}
+
+message GetEventRequest {
+  string event_id = 1;
+}
+
+message GetEventResponse {
+  Event event = 1;
+}
+
+message GetSeatAvailabilityRequest {
+  string event_id = 1;
+  repeated string seat_ids = 2;
+}
+
+message GetSeatAvailabilityResponse {
+  repeated SeatAvailability seats = 1;
+}
+
+message Event {
+  string id = 1;
+  string venue_id = 2;
+  string title = 3;
+  google.protobuf.Timestamp starts_at = 4;
+  google.protobuf.Timestamp ends_at = 5;
+  string currency = 6;
+  int64 price_from_minor = 7;
+}
+
+message SeatAvailability {
+  string seat_id = 1;
+  string section = 2;
+  string row = 3;
+  string number = 4;
+  string status = 5;
+  int64 price_minor = 6;
+  string currency = 7;
+}

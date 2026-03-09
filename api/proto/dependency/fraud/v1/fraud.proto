@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package dependency.fraud.v1;
+
+option go_package = "github.com/turserg/go-service-template/gen/go/dependency/fraud/v1;fraudv1";
+
+service FraudCheckService {
+  rpc Score(ScoreRequest) returns (ScoreResponse);
+}
+
+message ScoreRequest {
+  string order_id = 1;
+  string user_id = 2;
+  int64 amount_minor = 3;
+  string currency = 4;
+}
+
+message ScoreResponse {
+  string decision = 1;
+  double risk_score = 2;
+  string reason = 3;
+}

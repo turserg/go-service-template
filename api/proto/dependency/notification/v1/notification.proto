@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package dependency.notification.v1;
+
+option go_package = "github.com/turserg/go-service-template/gen/go/dependency/notification/v1;notificationv1";
+
+service NotificationService {
+  rpc SendTicket(SendTicketRequest) returns (SendTicketResponse);
+}
+
+message SendTicketRequest {
+  string ticket_id = 1;
+  string channel = 2;
+  string recipient = 3;
+}
+
+message SendTicketResponse {
+  string message_id = 1;
+  string status = 2;
+}
