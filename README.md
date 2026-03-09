@@ -56,9 +56,9 @@ Mocks strategy:
 - RPC transport: `google.golang.org/grpc`.
 - HTTP gateway + docs: `grpc-gateway/v2` + OpenAPI generation from proto annotations.
 - Database access: PostgreSQL + `pgx/v5` + `sqlc`.
-- Migrations: `golang-migrate`.
+- Migrations: `goose` SQL migrations (auto-apply on startup or via `cmd/migrate`).
 - Logging: standard `log/slog` with JSON output.
-- Tracing/metrics: OpenTelemetry SDK + OTLP exporter + Prometheus.
+- Tracing/metrics: OpenTelemetry SDK + OTLP exporter + Prometheus (+ Grafana/Jaeger in local stack).
 - Test stack: Go `testing`, `testify`, `testcontainers-go` (repository integration tests).
 
 ## Technology Cheat Sheet
@@ -71,10 +71,12 @@ Mocks strategy:
 - PostgreSQL: primary transactional database. Docs: https://www.postgresql.org/docs/
 - pgx: PostgreSQL driver/pool for Go. Docs: https://github.com/jackc/pgx
 - sqlc: type-safe SQL code generation. Docs: https://docs.sqlc.dev/
-- golang-migrate: SQL migrations management. Docs: https://github.com/golang-migrate/migrate
+- goose: SQL migrations tool for Go. Docs: https://github.com/pressly/goose
 - slog: structured logging in standard library. Docs: https://pkg.go.dev/log/slog
 - OpenTelemetry (Go): traces and telemetry instrumentation. Docs: https://opentelemetry.io/docs/languages/go/
 - Prometheus: metrics collection and querying. Docs: https://prometheus.io/docs/introduction/overview/
+- Grafana: metrics visualization. Docs: https://grafana.com/docs/grafana/latest/
+- Jaeger: distributed tracing backend and UI. Docs: https://www.jaegertracing.io/docs/
 - Docker Compose: local infrastructure orchestration. Docs: https://docs.docker.com/compose/
 
 ## Project Skeleton
@@ -93,7 +95,15 @@ Mocks strategy:
 |   |   `-- payment/v1/
 |   |-- google/api/
 |   `-- ticketing/v1/
+|-- cmd/migrate/
 |-- cmd/server/
+|-- deploy/observability/
+|   |-- grafana/
+|   |-- otel/
+|   `-- prometheus/
+|-- docs/diagrams/
+|-- docker-compose.yml
+|-- Dockerfile
 |-- internal/
 |   |-- domain/
 |   |   |-- booking/
@@ -104,6 +114,7 @@ Mocks strategy:
 |   |   |-- logger/
 |   |   |-- observability/
 |   |   `-- postgres/
+|   |-- repository/memory/
 |   |-- repository/postgres/
 |   |-- transport/
 |   |   |-- grpc/
@@ -124,7 +135,7 @@ Mocks strategy:
 - `internal/repository`: persistence adapters and DB-specific implementations behind interfaces.
 - `internal/transport`: delivery adapters (gRPC, HTTP gateway); this layer translates transport <-> use case.
 - `internal/platform`: infrastructural building blocks (config, logging, observability, DB wiring).
-- `migrations`: database schema lifecycle in versioned SQL.
+- `migrations`: goose migration files for database schema lifecycle.
 
 Architecture references:
 - Go project layout reference: https://github.com/golang-standards/project-layout
@@ -132,13 +143,33 @@ Architecture references:
 - Clean Architecture (overview): https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
 - Twelve-Factor App principles: https://12factor.net/
 
+## Architecture Diagram (PlantUML)
+
+- Main runtime flow diagram: `docs/diagrams/booking-flow.puml`
+- Covers: HTTP gateway -> gRPC transport -> usecase -> repository -> PostgreSQL transactions -> observability.
+- Suggested render command (if PlantUML is installed):
+
+```bash
+plantuml docs/diagrams/booking-flow.puml
+```
+
 ## Tooling
 
 Build and run:
 
 ```bash
 make build
-make run
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make run
+make migrate # optional: run only migrations against POSTGRES_DSN
+```
+
+Goose CLI helpers:
+
+```bash
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make goose-status
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make goose-up
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make goose-down
+make goose-create NAME=add_index_to_orders
 ```
 
 Default runtime addresses:
@@ -148,7 +179,53 @@ Default runtime addresses:
 Run on alternative ports (for parallel local runs):
 
 ```bash
-make run HTTP_ADDR=:18080 GRPC_ADDR=:19090
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make run HTTP_ADDR=:18080 GRPC_ADDR=:19090
+```
+
+`POSTGRES_DSN` is required. The service does not start without PostgreSQL.
+
+Run with PostgreSQL backend (auto-applies SQL migrations on startup):
+
+```bash
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' make run
+```
+
+Optional tracing in local run:
+
+```bash
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' OTEL_EXPORTER_OTLP_ENDPOINT=127.0.0.1:4317 OTEL_EXPORTER_OTLP_INSECURE=true make run
+```
+
+Full local stack via Docker Compose:
+
+```bash
+make docker-up
+```
+
+`make docker-up` starts infrastructure only (`postgres`, `otel-collector`, `jaeger`, `prometheus`, `grafana`) to keep app debugging convenient from GoLand.
+Run the service locally with:
+
+```bash
+POSTGRES_DSN='postgres://postgres:postgres@localhost:5432/ticketing?sslmode=disable' OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 OTEL_EXPORTER_OTLP_INSECURE=true make run
+```
+
+Optional: run app + migrator in Docker when needed:
+
+```bash
+make docker-up-app
+```
+
+Main local URLs in compose mode:
+- app portal: http://127.0.0.1:8080/
+- Swagger UI: http://127.0.0.1:8080/swagger/
+- Prometheus: http://127.0.0.1:9091/
+- Grafana (`admin` / `admin`): http://127.0.0.1:3000/
+- Jaeger: http://127.0.0.1:16686/
+
+Stop and cleanup compose resources:
+
+```bash
+make docker-down
 ```
 
 Smoke-check endpoints:
@@ -206,15 +283,16 @@ make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_
 - [x] Add developer portal page with links to Swagger, metrics, pprof, health, and sample API routes.
 
 ### Stage 3. Business Logic And Data
-- [ ] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.
-- [ ] Integrate PostgreSQL through the repository layer.
-- [ ] Add and apply database migrations.
+- [x] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.
+- [x] Integrate PostgreSQL through the repository layer (booking, startup requires PostgreSQL).
+- [x] Add and apply database migrations (goose migrations auto-applied when `POSTGRES_DSN` is set).
 
 ### Stage 4. Observability And Infrastructure
-- [ ] Bring up infrastructure via `docker-compose`: `app`, `postgres`, `migrator`, `otel-collector`, `prometheus`, `grafana`, `jaeger/tempo`.
-- [ ] Configure structured logging.
-- [ ] Configure tracing (`trace`/`span`).
-- [ ] Configure baseline metrics (`RPS`, `latency`, `errors`, `DB pool`).
+- [x] Bring up infrastructure via `docker-compose`: `app`, `postgres`, `migrator`, `otel-collector`, `prometheus`, `grafana`, `jaeger/tempo`.
+- [x] Configure structured logging.
+- [x] Configure tracing (`trace`/`span`).
+- [x] Configure baseline metrics (`RPS`, `latency`, `errors`, `DB pool`).
+- [ ] Add Grafana dashboard(s) for API, database pool, and runtime metrics.
 
 ### Stage 5. Testing And CI
 - [ ] Cover business logic (`usecase`) with unit tests.
@@ -224,16 +302,16 @@ make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_
 
 ### Stage 6. Documentation And Extensibility
 - [ ] Prepare run and setup documentation.
-- [ ] Document architecture and layer diagram.
+- [x] Document architecture and layer diagram.
 - [ ] Document how to add a new service or use case.
 - [ ] Prepare extension points for Kafka/Redis (interfaces, config, `docker-compose` profiles).
 
 ## Definition Of Done
 
-- [ ] At least 2-3 gRPC services and OpenAPI/Swagger are in place.
-- [ ] PostgreSQL works through migrations and repository layer.
+- [x] At least 2-3 gRPC services and OpenAPI/Swagger are in place.
+- [x] PostgreSQL works through migrations and repository layer.
 - [ ] Use case and repository layers are covered by tests.
-- [ ] Logs, metrics, and tracing are available through `docker-compose`.
+- [x] Logs, metrics, and tracing are available through `docker-compose`.
 - [ ] The project starts with one command and is clear as a reusable template.
 
 ## How We Track The Plan

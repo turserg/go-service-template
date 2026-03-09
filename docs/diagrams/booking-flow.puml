@@ -1,0 +1,63 @@
+@startuml
+title Booking Flow (HTTP -> gRPC -> Usecase -> Repository -> PostgreSQL)
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor Client
+participant "HTTP Gateway\n/v1/*" as HTTP
+participant "gRPC Service\nBookingService" as GRPC
+participant "Usecase Layer\ninternal/usecase/booking" as UC
+participant "Repository Layer\ninternal/repository/postgres" as REPO
+database "PostgreSQL" as PG
+participant "Telemetry\nOpenTelemetry + Prometheus" as OBS
+
+== Reserve Seats ==
+Client -> HTTP: POST /v1/booking/reservations
+HTTP -> OBS: HTTP metrics (RPS/latency/errors)
+HTTP -> GRPC: ReserveSeats(...)
+GRPC -> OBS: gRPC server span
+GRPC -> UC: ReserveSeats(input)
+UC -> REPO: ReserveSeats(input)
+REPO -> PG: BEGIN
+REPO -> PG: SELECT ... FOR UPDATE (seat_inventory)
+REPO -> PG: INSERT reservations + reservation_seats
+REPO -> PG: UPDATE seat_inventory SET status='reserved'
+REPO -> PG: COMMIT
+REPO --> UC: reservation_id, total_amount
+UC --> GRPC: ReserveSeatsOutput
+GRPC --> HTTP: ReserveSeatsResponse
+HTTP --> Client: 200 OK
+
+== Checkout Order ==
+Client -> HTTP: POST /v1/booking/orders:checkout
+HTTP -> GRPC: CheckoutOrder(...)
+GRPC -> UC: CheckoutOrder(input)
+UC -> REPO: CheckoutOrder(input)
+REPO -> PG: BEGIN
+REPO -> PG: SELECT reservation FOR UPDATE
+REPO -> PG: INSERT orders + payment_attempts
+REPO -> PG: UPDATE reservations status='confirmed'
+REPO -> PG: UPDATE seat_inventory status='sold'
+REPO -> PG: COMMIT
+REPO --> UC: order_id
+UC --> GRPC: CheckoutOrderOutput
+GRPC --> HTTP: CheckoutOrderResponse
+HTTP --> Client: 200 OK
+
+== Ticket Issuance ==
+Client -> HTTP: POST /v1/ticketing/orders/{order_id}/tickets:issue
+HTTP -> GRPC: IssueTickets(...)
+GRPC -> UC: IssueTickets(input)
+UC -> REPO: IssueTickets(input)
+REPO --> UC: ticket_id, status='issued'
+UC --> GRPC: IssueTicketsOutput
+GRPC --> HTTP: IssueTicketsResponse
+HTTP --> Client: 200 OK
+
+== Observability ==
+OBS -> PG: postgres pool metrics scrape\n(app_postgres_pool_*)
+OBS --> Client: /metrics via Prometheus/Grafana
+
+@enduml

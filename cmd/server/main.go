@@ -14,8 +14,15 @@ import (
 
 	"github.com/turserg/go-service-template/internal/platform/config"
 	"github.com/turserg/go-service-template/internal/platform/logger"
+	"github.com/turserg/go-service-template/internal/platform/observability"
+	postgresplatform "github.com/turserg/go-service-template/internal/platform/postgres"
+	memoryrepo "github.com/turserg/go-service-template/internal/repository/memory"
+	postgresrepo "github.com/turserg/go-service-template/internal/repository/postgres"
 	grpctransport "github.com/turserg/go-service-template/internal/transport/grpc"
 	httptransport "github.com/turserg/go-service-template/internal/transport/http"
+	bookingusecase "github.com/turserg/go-service-template/internal/usecase/booking"
+	catalogusecase "github.com/turserg/go-service-template/internal/usecase/catalog"
+	ticketingusecase "github.com/turserg/go-service-template/internal/usecase/ticketing"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -33,10 +40,55 @@ func run(cfg config.Config, log *slog.Logger) error {
 	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	state := grpctransport.NewInMemoryState()
-	catalogService := grpctransport.NewCatalogService(log)
-	bookingService := grpctransport.NewBookingService(log, state)
-	ticketService := grpctransport.NewTicketService(log, state)
+	telemetry, err := observability.New(rootCtx, observability.Config{
+		ServiceName:  cfg.ServiceName,
+		OTLPEndpoint: cfg.OTLPEndpoint,
+		OTLPInsecure: cfg.OTLPInsecure,
+	})
+	if err != nil {
+		return fmt.Errorf("initialize telemetry: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if shutdownErr := telemetry.Shutdown(shutdownCtx); shutdownErr != nil {
+			log.Error("shutdown telemetry", "error", shutdownErr)
+		}
+	}()
+
+	log.Info("telemetry initialized", "tracing_enabled", telemetry.Enabled(), "otlp_endpoint", cfg.OTLPEndpoint)
+
+	if cfg.PostgresDSN == "" {
+		return errors.New("POSTGRES_DSN is required")
+	}
+
+	pgClient, err := postgresplatform.NewClient(rootCtx, cfg.PostgresDSN)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer pgClient.Close()
+
+	if err = postgresplatform.ApplyMigrations(rootCtx, cfg.PostgresDSN, cfg.MigrationsDir); err != nil {
+		return fmt.Errorf("apply postgres migrations: %w", err)
+	}
+
+	if err = observability.RegisterPostgresPoolMetrics(pgClient.Pool()); err != nil {
+		return fmt.Errorf("register postgres pool metrics: %w", err)
+	}
+
+	bookingRepo := bookingusecase.Repository(postgresrepo.NewBookingRepository(pgClient.Pool()))
+	log.Info("booking repository backend selected", "backend", "postgres")
+
+	catalogRepo := memoryrepo.NewCatalogRepository()
+	catalogUsecase := catalogusecase.NewService(catalogRepo)
+
+	bookingUsecase := bookingusecase.NewService(bookingRepo)
+	ticketRepo := memoryrepo.NewTicketRepository()
+	ticketUsecase := ticketingusecase.NewService(ticketRepo)
+
+	catalogService := grpctransport.NewCatalogService(log, catalogUsecase)
+	bookingService := grpctransport.NewBookingService(log, bookingUsecase)
+	ticketService := grpctransport.NewTicketService(log, ticketUsecase)
 
 	grpcServer := grpctransport.NewServer(catalogService, bookingService, ticketService)
 

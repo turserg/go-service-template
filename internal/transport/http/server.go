@@ -11,6 +11,7 @@ import (
 	bookingv1 "github.com/turserg/go-service-template/gen/go/booking/v1"
 	catalogv1 "github.com/turserg/go-service-template/gen/go/catalog/v1"
 	ticketingv1 "github.com/turserg/go-service-template/gen/go/ticketing/v1"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func NewHandler(
@@ -54,7 +55,15 @@ func NewHandler(
 	// Public API.
 	httpMux.Handle("/v1/", gatewayMux)
 
-	return httpMux, nil
+	withMetrics := metricsMiddleware(httpMux)
+	withTelemetry := otelhttp.NewHandler(
+		withMetrics,
+		"http-server",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + normalizeRoute(r.URL.Path)
+		}),
+	)
+	return withTelemetry, nil
 }
 
 func developerHomeHandler(w http.ResponseWriter, r *http.Request) {

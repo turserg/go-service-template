@@ -1,4 +1,4 @@
-.PHONY: build run tools-install .bin-deps proto-update-lock .buf-lint .buf-generate proto-lint proto-generate
+.PHONY: build run migrate goose-status goose-up goose-down goose-create docker-up docker-up-app docker-down tools-install .bin-deps proto-update-lock .buf-lint .buf-generate proto-lint proto-generate
 
 APP_NAME := service-template
 LOCAL_BIN := $(CURDIR)/bin
@@ -8,6 +8,8 @@ BUF_TEMPLATE := $(PROTO_MODULE_DIR)/buf.gen.yaml
 BUF_OPENAPI_TEMPLATE := $(PROTO_MODULE_DIR)/buf.openapi.gen.yaml
 HTTP_ADDR ?= :8080
 GRPC_ADDR ?= :9090
+MIGRATIONS_DIR ?= migrations
+GOOSE_VERSION ?= v3.27.0
 
 PROTOC_GEN_GO_VERSION ?= v1.28.1
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.2.0
@@ -21,6 +23,34 @@ build:
 
 run:
 	@CGO_ENABLED=0 HTTP_ADDR="$(HTTP_ADDR)" GRPC_ADDR="$(GRPC_ADDR)" go run ./cmd/server/main.go
+
+migrate:
+	@CGO_ENABLED=0 go run ./cmd/migrate/main.go
+
+goose-status:
+	@test -n "$(POSTGRES_DSN)" || (echo "POSTGRES_DSN is required"; exit 1)
+	@go run github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION) -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" status
+
+goose-up:
+	@test -n "$(POSTGRES_DSN)" || (echo "POSTGRES_DSN is required"; exit 1)
+	@go run github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION) -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" up
+
+goose-down:
+	@test -n "$(POSTGRES_DSN)" || (echo "POSTGRES_DSN is required"; exit 1)
+	@go run github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION) -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" down
+
+goose-create:
+	@test -n "$(NAME)" || (echo "NAME is required. Example: make goose-create NAME=add_index_to_orders"; exit 1)
+	@go run github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION) -dir $(MIGRATIONS_DIR) create "$(NAME)" sql
+
+docker-up:
+	@docker compose up -d
+
+docker-up-app:
+	@docker compose --profile app up --build -d
+
+docker-down:
+	@docker compose down --volumes
 
 tools-install: .bin-deps
 
