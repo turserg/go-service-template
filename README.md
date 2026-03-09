@@ -13,6 +13,42 @@ Build a service template that includes:
 - infrastructure managed with `docker-compose`;
 - extension points for future components (Kafka, Redis, etc.).
 
+## Selected Domain
+
+Use domain: **Event Ticketing Platform**.
+
+This domain gives us clear transactional workflows, concurrent load scenarios, and clean boundaries for multiple gRPC services.
+
+### Core bounded contexts
+- `catalog`: events, venues, seat maps, pricing plans.
+- `booking`: reservations, checkout, cancellation, order lifecycle.
+- `ticketing`: ticket issuance and delivery state.
+
+### gRPC services (internal API)
+- `CatalogService`: browse events, seat availability, pricing.
+- `BookingService`: reserve seats, checkout order, cancel order.
+- `TicketService`: issue tickets, get ticket status, re-send ticket.
+
+### Transaction-heavy use cases
+- Reserve seats: lock selected seats, validate availability, create reservation atomically.
+- Checkout order: persist payment attempt and order status transition atomically.
+- Cancel order: rollback reservation and release seats atomically.
+
+### Concurrency-focused use cases
+- High-contention seat reservation with row locking (`SELECT ... FOR UPDATE`) and idempotency keys.
+- Parallel execution of independent checks during checkout (for example, fraud + loyalty + pricing validation) via `errgroup`.
+- Background worker pool for asynchronous ticket delivery and retry with backoff.
+
+### External gRPC dependencies (mocked locally)
+- `PaymentGatewayService` (authorize/capture/refund).
+- `FraudCheckService` (risk scoring).
+- `NotificationService` (email/push delivery).
+
+Mocks strategy:
+- Run lightweight mock gRPC servers in `docker-compose` for local development.
+- Support deterministic failure modes (timeouts, unavailable, business reject) via config flags.
+- Use in-memory `bufconn` mocks for fast unit/integration tests where possible.
+
 ## Roadmap And Progress
 
 > Status format:
@@ -23,7 +59,7 @@ Build a service template that includes:
 - [x] Align on and document the project roadmap in `README.md`.
 
 ### Stage 1. Foundation And Architecture
-- [ ] Define architectural principles and system boundaries.
+- [x] Define architectural principles and system boundaries.
 - [ ] Select and lock the base stack (`grpc`, `grpc-gateway`, `OpenAPI`, `pgx/sqlc`, `migrate`, `slog/zap`, `OpenTelemetry`, `Prometheus`).
 - [ ] Set up the project skeleton by layers: `transport`, `usecase`, `repository`, `domain`, `internal/platform`.
 
@@ -34,7 +70,7 @@ Build a service template that includes:
 - [ ] Configure Swagger/OpenAPI generation from `proto`.
 
 ### Stage 3. Business Logic And Data
-- [ ] Implement 2-3 domain use case sets (for example: `users`, `auth`, `orders`) via `usecase` + `repository`.
+- [ ] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.
 - [ ] Integrate PostgreSQL through the repository layer.
 - [ ] Add and apply database migrations.
 
