@@ -1,0 +1,79 @@
+# Go Service Template
+
+A reference Go project focused on best practices, scalable architecture, and maintainable development.
+
+## Goal
+
+Build a service template that includes:
+- multiple gRPC services;
+- PostgreSQL integration;
+- clear business logic and repository layers;
+- Swagger/OpenAPI;
+- logging, tracing, and metrics;
+- infrastructure managed with `docker-compose`;
+- extension points for future components (Kafka, Redis, etc.).
+
+## Roadmap And Progress
+
+> Status format:
+> - `[ ]` not started
+> - `[x]` done
+
+### Stage 0. Planning
+- [x] Align on and document the project roadmap in `README.md`.
+
+### Stage 1. Foundation And Architecture
+- [ ] Define architectural principles and system boundaries.
+- [ ] Select and lock the base stack (`grpc`, `grpc-gateway`, `OpenAPI`, `pgx/sqlc`, `migrate`, `slog/zap`, `OpenTelemetry`, `Prometheus`).
+- [ ] Set up the project skeleton by layers: `transport`, `usecase`, `repository`, `domain`, `internal/platform`.
+
+### Stage 2. API And Transport
+- [ ] Define `proto` files for multiple gRPC services.
+- [ ] Configure gRPC code generation.
+- [ ] Integrate HTTP gateway.
+- [ ] Configure Swagger/OpenAPI generation from `proto`.
+
+### Stage 3. Business Logic And Data
+- [ ] Implement 2-3 domain use case sets (for example: `users`, `auth`, `orders`) via `usecase` + `repository`.
+- [ ] Integrate PostgreSQL through the repository layer.
+- [ ] Add and apply database migrations.
+
+### Stage 4. Observability And Infrastructure
+- [ ] Bring up infrastructure via `docker-compose`: `app`, `postgres`, `migrator`, `otel-collector`, `prometheus`, `grafana`, `jaeger/tempo`.
+- [ ] Configure structured logging.
+- [ ] Configure tracing (`trace`/`span`).
+- [ ] Configure baseline metrics (`RPS`, `latency`, `errors`, `DB pool`).
+
+### Stage 5. Testing And CI
+- [ ] Cover business logic (`usecase`) with unit tests.
+- [ ] Cover repository layer with tests (integration tests with PostgreSQL).
+- [ ] Add minimal gRPC end-to-end smoke tests.
+- [ ] Configure CI: `lint`, `test`, `race`, migration checks, and codegen checks.
+
+### Stage 6. Documentation And Extensibility
+- [ ] Prepare run and setup documentation.
+- [ ] Document architecture and layer diagram.
+- [ ] Document how to add a new service or use case.
+- [ ] Prepare extension points for Kafka/Redis (interfaces, config, `docker-compose` profiles).
+
+## Definition Of Done
+
+- [ ] At least 2-3 gRPC services and OpenAPI/Swagger are in place.
+- [ ] PostgreSQL works through migrations and repository layer.
+- [ ] Use case and repository layers are covered by tests.
+- [ ] Logs, metrics, and tracing are available through `docker-compose`.
+- [ ] The project starts with one command and is clear as a reusable template.
+
+## How We Track The Plan
+
+- After finishing a task, change its checkbox from `[ ]` to `[x]`.
+- If a new task appears, add it to the relevant stage.
+- If it does not fit current stages, add it to `Backlog / Ideas`.
+- Use roadmap checkboxes as the single source of progress.
+
+## Backlog / Ideas
+
+Add new items here as they come up during implementation.
+
+- [ ] Add an event module scaffold (for future Kafka integration).
+- [ ] Add a caching layer scaffold (for future Redis integration).
