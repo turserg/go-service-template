@@ -140,6 +140,17 @@ make build
 make run
 ```
 
+Default runtime addresses:
+- gRPC: `:9090` (`GRPC_ADDR`)
+- HTTP gateway: `:8080` (`HTTP_ADDR`)
+
+Smoke-check endpoints:
+
+```bash
+curl -i http://127.0.0.1:8080/healthz
+curl -i http://127.0.0.1:8080/v1/catalog/events
+```
+
 Proto workflow (installs all required generators into `./bin`):
 
 ```bash
@@ -177,8 +188,9 @@ make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_
 ### Stage 2. API And Transport
 - [x] Define `proto` files for multiple gRPC services.
 - [x] Configure gRPC code generation.
-- [ ] Integrate HTTP gateway.
+- [x] Integrate HTTP gateway.
 - [x] Configure Swagger/OpenAPI generation from `proto`.
+- [ ] Add Swagger UI endpoint to browse generated OpenAPI specs.
 
 ### Stage 3. Business Logic And Data
 - [ ] Implement 2-3 domain use case sets (for example: `catalog`, `booking`, `ticketing`) via `usecase` + `repository`.

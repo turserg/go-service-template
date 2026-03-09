@@ -13,6 +13,7 @@ PROTOC_GEN_OPENAPIV2_VERSION ?= v2.16.2
 BUF_VERSION ?= v1.21.0
 
 build:
+	@mkdir -p bin
 	go build -o bin/$(APP_NAME) ./cmd/server
 
 run:
