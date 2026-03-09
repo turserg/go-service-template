@@ -61,20 +61,37 @@ Mocks strategy:
 - Tracing/metrics: OpenTelemetry SDK + OTLP exporter + Prometheus.
 - Test stack: Go `testing`, `testify`, `testcontainers-go` (repository integration tests).
 
+## Technology Cheat Sheet
+
+- Go: core language/runtime for business services. Docs: https://go.dev/doc/
+- Protobuf: API schema and contract definitions. Docs: https://protobuf.dev/
+- Buf: lint, breaking checks, and proto generation workflow. Docs: https://buf.build/docs/
+- gRPC (Go): internal RPC transport. Docs: https://grpc.io/docs/languages/go/
+- gRPC-Gateway: HTTP/JSON facade over gRPC + OpenAPI generation. Docs: https://grpc-ecosystem.github.io/grpc-gateway/docs/
+- PostgreSQL: primary transactional database. Docs: https://www.postgresql.org/docs/
+- pgx: PostgreSQL driver/pool for Go. Docs: https://github.com/jackc/pgx
+- sqlc: type-safe SQL code generation. Docs: https://docs.sqlc.dev/
+- golang-migrate: SQL migrations management. Docs: https://github.com/golang-migrate/migrate
+- slog: structured logging in standard library. Docs: https://pkg.go.dev/log/slog
+- OpenTelemetry (Go): traces and telemetry instrumentation. Docs: https://opentelemetry.io/docs/languages/go/
+- Prometheus: metrics collection and querying. Docs: https://prometheus.io/docs/introduction/overview/
+- Docker Compose: local infrastructure orchestration. Docs: https://docs.docker.com/compose/
+
 ## Project Skeleton
 
 ```text
 .
 |-- api/proto/
+|   |-- buf.gen.yaml
+|   |-- buf.yaml
 |   |-- booking/v1/
 |   |-- catalog/v1/
 |   |-- dependency/
 |   |   |-- fraud/v1/
 |   |   |-- notification/v1/
 |   |   `-- payment/v1/
+|   |-- google/api/
 |   `-- ticketing/v1/
-|-- buf.gen.yaml
-|-- buf.yaml
 |-- cmd/server/
 |-- internal/
 |   |-- domain/
@@ -95,6 +112,52 @@ Mocks strategy:
 |       |-- catalog/
 |       `-- ticketing/
 `-- migrations/
+```
+
+## Why This Folder Layout
+
+- `api/proto`: contract-first API source of truth; transport contracts evolve independently from business code.
+- `cmd/server`: composition root; app wiring starts here and keeps bootstrap code away from domain logic.
+- `internal/domain`: pure domain model and business primitives without transport/storage dependencies.
+- `internal/usecase`: application services that orchestrate business flows and transactions.
+- `internal/repository`: persistence adapters and DB-specific implementations behind interfaces.
+- `internal/transport`: delivery adapters (gRPC, HTTP gateway); this layer translates transport <-> use case.
+- `internal/platform`: infrastructural building blocks (config, logging, observability, DB wiring).
+- `migrations`: database schema lifecycle in versioned SQL.
+
+Architecture references:
+- Go project layout reference: https://github.com/golang-standards/project-layout
+- Ports and Adapters (Hexagonal): https://alistair.cockburn.us/hexagonal-architecture
+- Clean Architecture (overview): https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
+- Twelve-Factor App principles: https://12factor.net/
+
+## Tooling
+
+Build and run:
+
+```bash
+make build
+make run
+```
+
+Proto workflow (installs all required generators into `./bin`):
+
+```bash
+make tools-install
+make proto-lint
+make proto-generate
+```
+
+Optional (only if remote deps are added to `buf.yaml` in future):
+
+```bash
+make proto-update-lock
+```
+
+Optional: override tool versions:
+
+```bash
+make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_GO_GRPC_VERSION=v1.2.0
 ```
 
 ## Roadmap And Progress
