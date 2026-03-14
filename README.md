@@ -293,6 +293,11 @@ make tools-install BUF_VERSION=v1.21.0 PROTOC_GEN_GO_VERSION=v1.28.1 PROTOC_GEN_
 - [x] Configure tracing (`trace`/`span`).
 - [x] Configure baseline metrics (`RPS`, `latency`, `errors`, `DB pool`).
 - [ ] Add Grafana dashboard(s) for API, database pool, and runtime metrics.
+- [ ] Add Pyroscope for continuous profiling and integrate profiling data into observability workflow.
+- [ ] Add `pyroscope` service to `docker-compose` with persistent storage and UI access.
+- [ ] Integrate Pyroscope Go SDK in the app (`cpu`, `alloc`, `inuse`, `goroutines`, `mutex`, `block` profiles).
+- [ ] Add Pyroscope runtime config (`PYROSCOPE_SERVER_ADDRESS`, app name, env labels).
+- [ ] Add Grafana datasource/panels for profiling (or link to Pyroscope UI from the developer portal).
 
 ### Stage 5. Testing And CI
 - [ ] Cover business logic (`usecase`) with unit tests.
